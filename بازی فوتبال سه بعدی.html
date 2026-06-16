@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>⚽ شبیه‌ساز فوتبال ۳ بعدی – تیم کامل با دروازه‌بان</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #0a0f1a;
+            font-family: 'Tahoma', 'Segoe UI', sans-serif;
+            color: #fff;
+        }
+        #ui {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .panel {
+            background: rgba(10, 15, 30, 0.85);
+            padding: 12px 24px;
+            border-radius: 16px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+        }
+        .blue-panel {
+            border-left: 4px solid #4dacff;
+        }
+        .red-panel {
+            border-right: 4px solid #ff5e5e;
+        }
+        #score {
+            font-size: 38px;
+            font-weight: 900;
+            letter-spacing: 2px;
+        }
+        #power {
+            position: absolute;
+            bottom: 35px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 10px 28px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            z-index: 100;
+            pointer-events: none;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        #powerBar {
+            width: 220px;
+            height: 10px;
+            background: #222;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 6px auto 0;
+        }
+        #powerFill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #ffdd00, #ff3300);
+            border-radius: 5px;
+            transition: width 0.08s;
+        }
+        #message {
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 70px;
+            font-weight: 900;
+            color: #ffd700;
+            text-shadow: 0 0 50px #ff4500, 0 0 100px #ff0000;
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            white-space: nowrap;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.7;
+            z-index: 100;
+            pointer-events: none;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .key {
+            display: inline-block;
+            background: #333;
+            padding: 2px 7px;
+            border-radius: 4px;
+            margin: 1px;
+            font-weight: bold;
+            border: 1px solid #555;
+        }
+        #formation {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 8px 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        #error-message {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 500;
+            border: 2px solid #f55;
+            max-width: 85%;
+            font-size: 18px;
+            line-height: 1.8;
+        }
+    </style>
+    <script>
+        function loadScript(url, fallbackUrl, errorCallback) {
+            var s = document.createElement('script');
+            s.src = url;
+            s.onerror = function() {
+                if (fallbackUrl) {
+                    console.warn('CDN اول ناموفق، تلاش دوم...');
+                    loadScript(fallbackUrl, null, errorCallback);
+                } else errorCallback();
+            };
+            document.head.appendChild(s);
+        }
+        loadScript(
+            'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js',
+            'https://unpkg.com/three@0.128.0/build/three.min.js',
+            function() { document.getElementById('error-message').style.display = 'block'; }
+        );
+    </script>
+</head>
+<body>
+
+    <div id="ui">
+        <div class="panel blue-panel">
+            <span style="color:#4dacff;font-size:20px;">🔵 تیم آبی (باهوش)</span>
+            <span id="blueScore" style="margin:0 12px;font-size:36px;font-weight:900;">0</span>
+        </div>
+        <div class="panel red-panel">
+            <span style="color:#ff5e5e;font-size:20px;">🔴 تیم قرمز</span>
+            <span id="redScore" style="margin:0 12px;font-size:36px;font-weight:900;">0</span>
+        </div>
+    </div>
+
+    <div id="power">
+        ⚡ قدرت شوت
+        <div id="powerBar"><div id="powerFill"></div></div>
+    </div>
+
+    <div id="message">⚽ GOAL!</div>
+
+    <div id="controls">
+        <span class="key">⬆⬇⬅➡</span> حرکت مهاجم شما<br>
+        <span class="key">Space</span> نگه دار → شارژ / رها کن → شوت<br>
+        <span class="key">8</span><span class="key">2</span><span class="key">4</span><span class="key">6</span> چرخش دوربین
+    </div>
+
+    <div id="formation">
+        🏟 سیستم: ۱-۲-۲<br>
+        <span style="color:#4dacff;">🔵 GK·DF·DF·MF·MF·FW(شما)</span><br>
+        <span style="color:#ff5e5e;">🔴 GK·DF·DF·MF·MF·FW</span>
+    </div>
+
+    <div id="error-message">
+        ❗ کتابخانهٔ سه‌بعدی بارگذاری نشد<br>
+        لطفاً <b>three.min.js</b> را دانلود کرده و در کنار فایل HTML قرار دهید.
+    </div>
+
+    <script>
+        window.addEventListener('load', function() {
+            if (typeof THREE === 'undefined') {
+                document.getElementById('error-message').style.display = 'block';
+                return;
+            }
+            startGame();
+        });
+
+        function startGame() {
+            // ════════════════════ ثابت‌ها ════════════════════
+            const W = window.innerWidth, H = window.innerHeight;
+            const PITCH_L = 90, PITCH_W = 60;
+            const HALF_L = PITCH_L / 2, HALF_W = PITCH_W / 2;
+            const GOAL_W = 18, GOAL_H = 6, GOAL_D = 4;
+            const BALL_R = 1.2;
+            const PLAYER_R = 1.8;
+            const GK_SAVE_RANGE_BLUE = 8.5;
+            const GK_SAVE_RANGE_RED = 6.5;
+
+            // پارامترهای هوش آبی (باهوش‌تر)
+            const BLUE_SPEED = 0.20;
+            const BLUE_ACCEL = 0.025;
+            const BLUE_SHOOT_ACC = 0.85; // دقت شوت
+            const BLUE_COOLDOWN = 70;
+
+            // پارامترهای هوش قرمز (معمولی)
+            const RED_SPEED = 0.14;
+            const RED_ACCEL = 0.018;
+            const RED_SHOOT_ACC = 0.55;
+            const RED_COOLDOWN = 100;
+
+            const FRICTION = 0.90;
+            const TURN_SPEED = 0.07;
+            const BALL_FRICTION = 0.985;
+
+            // ════════════════ صحنه، دوربین، رندر ════════════════
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a2740);
+            scene.fog = new THREE.Fog(0x1a2740, 60, 160);
+
+            const camera = new THREE.PerspectiveCamera(50, W / H, 0.5, 300);
+            camera.position.set(0, 50, 70);
+            camera.lookAt(0, 0, 0);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(W, H);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.body.appendChild(renderer.domElement);
+
+            // ════════════════ نور ════════════════
+            scene.add(new THREE.AmbientLight(0x404060));
+            const sun = new THREE.DirectionalLight(0xffffff, 1.3);
+            sun.position.set(50, 90, 35);
+            sun.castShadow = true;
+            sun.receiveShadow = true;
+            sun.shadow.mapSize.width = sun.shadow.mapSize.height = 2048;
+            sun.shadow.camera.near = 1;
+            sun.shadow.camera.far = 220;
+            sun.shadow.camera.left = -60;
+            sun.shadow.camera.right = 60;
+            sun.shadow.camera.top = 60;
+            sun.shadow.camera.bottom = -60;
+            scene.add(sun);
+
+            // ════════════════ زمین چمن ════════════════
+            const grass = new THREE.Mesh(
+                new THREE.PlaneGeometry(PITCH_L + 12, PITCH_W + 12),
+                new THREE.MeshStandardMaterial({ color: 0x2e8b3a, roughness: 0.85 })
+            );
+            grass.rotation.x = -Math.PI / 2;
+            grass.position.y = -0.05;
+            grass.receiveShadow = true;
+            scene.add(grass);
+
+            // خطوط
+            const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+            function addLine(pts) {
+                scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lineMat));
+            }
+            addLine([v(-HALF_L, 0.02, -HALF_W), v(HALF_L, 0.02, -HALF_W), v(HALF_L, 0.02, HALF_W), v(-HALF_L, 0.02, HALF_W), v(-HALF_L, 0.02, -HALF_W)]);
+            addLine([v(0, 0.02, -HALF_W), v(0, 0.02, HALF_W)]);
+            const circPts = new THREE.EllipseCurve(0, 0, 10, 10, 0, 2 * Math.PI, false, 0).getPoints(80).map(p => v(p.x, 0.02, p.y));
+            scene.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(circPts), lineMat));
+
+            // محوطه جریمه
+            [-HALF_L, HALF_L].forEach(gx => {
+                const sign = gx > 0 ? 1 : -1;
+                addLine([v(gx - sign * 16, 0.02, -GOAL_W / 2 - 4), v(gx - sign * 16, 0.02, GOAL_W / 2 + 4)]);
+                addLine([v(gx, 0.02, -GOAL_W / 2 - 4), v(gx - sign * 16, 0.02, -GOAL_W / 2 - 4)]);
+                addLine([v(gx, 0.02, GOAL_W / 2 + 4), v(gx - sign * 16, 0.02, GOAL_W / 2 + 4)]);
+                addLine([v(gx - sign * 6, 0.02, -GOAL_W / 2), v(gx - sign * 6, 0.02, GOAL_W / 2)]);
+            });
+
+            function v(x, y, z) { return new THREE.Vector3(x, y, z); }
+
+            // ════════════════ دروازه‌ها ════════════════
+            function createGoal(xPos) {
+                const g = new THREE.Group();
+                const pm = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.4, roughness: 0.35 });
+                const pg = new THREE.CylinderGeometry(0.45, 0.45, GOAL_H, 10);
+                const pl = new THREE.Mesh(pg, pm);
+                pl.position.set(xPos, GOAL_H / 2, -GOAL_W / 2);
+                pl.castShadow = pl.receiveShadow = true;
+                g.add(pl);
+                const pr = new THREE.Mesh(pg, pm);
+                pr.position.set(xPos, GOAL_H / 2, GOAL_W / 2);
+                pr.castShadow = pr.receiveShadow = true;
+                g.add(pr);
+                const bg = new THREE.CylinderGeometry(0.4, 0.4, GOAL_W + 0.8, 8);
+                const bar = new THREE.Mesh(bg, pm);
+                bar.rotation.z = Math.PI / 2;
+                bar.position.set(xPos, GOAL_H, 0);
+                bar.castShadow = bar.receiveShadow = true;
+                g.add(bar);
+                const net = new THREE.Mesh(
+                    new THREE.PlaneGeometry(GOAL_W, GOAL_H),
+                    new THREE.MeshStandardMaterial({ color: 0xdddddd, transparent: true, opacity: 0.18, side: THREE.DoubleSide })
+                );
+                net.position.set(xPos + (xPos > 0 ? -0.4 : 0.4), GOAL_H / 2, 0);
+                net.rotation.y = xPos > 0 ? Math.PI / 2 : -Math.PI / 2;
+                g.add(net);
+                return g;
+            }
+            scene.add(createGoal(HALF_L));
+            scene.add(createGoal(-HALF_L));
+
+            // ════════════════ توپ ════════════════
+            const ball = new THREE.Mesh(
+                new THREE.SphereGeometry(BALL_R, 32, 18),
+                new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.15, metalness: 0.05 })
+            );
+            ball.castShadow = ball.receiveShadow = true;
+            ball.position.set(0, BALL_R, 0);
+            scene.add(ball);
+            const ballVel = new THREE.Vector3();
+            let lastKicker = null;
+
+            // ════════════════ بارگذاری چهره ════════════════
+            let faceTex = null;
+            const txLoader = new THREE.TextureLoader();
+            txLoader.load('https://gapgpt.app/images/styles/passport-photo.webp',
+                tex => {
+                    tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+                    faceTex = tex;
+                    allPlayers.forEach(p => {
+                        if (p.mesh.headMesh && p.mesh.headMesh.material && p.role !== 'gk') {
+                            p.mesh.headMesh.material.map = tex;
+                            p.mesh.headMesh.material.needsUpdate = true;
+                        }
+                    });
+                },
+                undefined, () => console.warn('عکس چهره بارگذاری نشد')
+            );
+
+            // ════════════════ ساخت مدل بازیکن ════════════════
+            function createPlayer(teamColor, role) {
+                const group = new THREE.Group();
+                const isGK = (role === 'gk');
+
+                // بدن
+                const bodyH = isGK ? 3.0 : 2.4;
+                const bodyW = isGK ? 1.0 : 0.8;
+                const bodyColor = isGK ? 0xffc107 : teamColor;
+                const body = new THREE.Mesh(
+                    new THREE.CylinderGeometry(bodyW, bodyW, bodyH, 10),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.35 })
+                );
+                body.position.y = bodyH / 2 + 0.1;
+                body.castShadow = body.receiveShadow = true;
+                group.add(body);
+
+                // سر
+                const headR = isGK ? 0.6 : 0.55;
+                const headColor = (isGK) ? 0xffdd88 : (faceTex ? 0xffffff : 0xffdd88);
+                const head = new THREE.Mesh(
+                    new THREE.SphereGeometry(headR, 16, 12),
+                    new THREE.MeshStandardMaterial({ color: headColor, map: isGK ? null : faceTex, roughness: 0.55 })
+                );
+                head.position.y = bodyH + 0.6;
+                head.castShadow = head.receiveShadow = true;
+                group.add(head);
+                group.headMesh = head;
+
+                // پاها
+                const legG = new THREE.CylinderGeometry(0.35, 0.35, 1.5, 6);
+                const legM = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.5 });
+                const ll = new THREE.Mesh(legG, legM);
+                ll.position.set(-0.4, 0.75, 0);
+                ll.castShadow = ll.receiveShadow = true;
+                group.add(ll);
+                const rl = new THREE.Mesh(legG, legM);
+                rl.position.set(0.4, 0.75, 0);
+                rl.castShadow = rl.receiveShadow = true;
+                group.add(rl);
+                group.leftLeg = ll;
+                group.rightLeg = rl;
+
+                // دست‌ها
+                const armG = new THREE.CylinderGeometry(isGK ? 0.3 : 0.25, isGK ? 0.3 : 0.25, isGK ? 2.0 : 1.6, 6);
+                const armM = new THREE.MeshStandardMaterial({ color: isGK ? 0xffc107 : teamColor, roughness: 0.4 });
+                const la = new THREE.Mesh(armG, armM);
+                la.position.set(-1.05, bodyH * 0.65, 0);
+                la.castShadow = true;
+                group.add(la);
+                const ra = new THREE.Mesh(armG, armM);
+                ra.position.set(1.05, bodyH * 0.65, 0);
+                ra.castShadow = true;
+                group.add(ra);
+
+                // دستکش برای دروازه‌بان
+                if (isGK) {
+                    const gloveG = new THREE.SphereGeometry(0.35, 8, 6);
+                    const gloveM = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+                    const lg = new THREE.Mesh(gloveG, gloveM);
+                    lg.position.set(-1.05, bodyH * 0.65 - 0.9, 0);
+                    group.add(lg);
+                    const rg = new THREE.Mesh(gloveG, gloveM);
+                    rg.position.set(1.05, bodyH * 0.65 - 0.9, 0);
+                    group.add(rg);
+                }
+
+                return group;
+            }
+
+            // ════════════════ ساخت تمام بازیکنان ════════════════
+            const allPlayers = [];
+            const blueTeam = [];
+            const redTeam = [];
+            let userPlayer = null;
+
+            // تیم آبی (دفاع از دروازه چپ در x=-45، حمله به راست)
+            const blueFormation = [
+                { role: 'gk', x: -HALF_L + 3, z: 0 },
+                { role: 'df', x: -33, z: -10 },
+                { role: 'df', x: -33, z: 10 },
+                { role: 'mf', x: -18, z: -14 },
+                { role: 'mf', x: -18, z: 14 },
+                { role: 'fw', x: -12, z: 0, isUser: true },
+            ];
+
+            blueFormation.forEach((pos, i) => {
+                const p = {
+                    mesh: createPlayer(0x4dacff, pos.role),
+                    team: 'blue',
+                    role: pos.role,
+                    isUser: !!pos.isUser,
+                    maxSpeed: BLUE_SPEED,
+                    accel: BLUE_ACCEL,
+                    shootAccuracy: BLUE_SHOOT_ACC,
+                    cooldownMax: BLUE_COOLDOWN,
+                    cooldown: 0,
+                    shooting: false,
+                    shootProg: 0,
+                    shootDir: 1,
+                    baseLegRot: 0,
+                    vel: new THREE.Vector3(),
+                    diveTimer: 0,
+                    diveDir: 0,
+                    defensiveX: pos.x, // موقعیت دفاعی مرجع
+                    defensiveZ: pos.z,
+                };
+                p.mesh.position.set(pos.x, 0, pos.z);
+                p.mesh.rotation.y = 0;
+                if (pos.role === 'gk') p.mesh.rotation.y = Math.PI;
+                scene.add(p.mesh);
+                allPlayers.push(p);
+                blueTeam.push(p);
+                if (pos.isUser) userPlayer = p;
+            });
+
+            // تیم قرمز (دفاع از دروازه راست، حمله به چپ)
+            const redFormation = [
+                { role: 'gk', x: HALF_L - 3, z: 0 },
+                { role: 'df', x: 33, z: -10 },
+                { role: 'df', x: 33, z: 10 },
+                { role: 'mf', x: 18, z: -14 },
+                { role: 'mf', x: 18, z: 14 },
+                { role: 'fw', x: 12, z: 0 },
+            ];
+
+            redFormation.forEach(pos => {
+                const p = {
+                    mesh: createPlayer(0xff5e5e, pos.role),
+                    team: 'red',
+                    role: pos.role,
+                    isUser: false,
+                    maxSpeed: RED_SPEED,
+                    accel: RED_ACCEL,
+                    shootAccuracy: RED_SHOOT_ACC,
+                    cooldownMax: RED_COOLDOWN,
+                    cooldown: 0,
+                    shooting: false,
+                    shootProg: 0,
+                    shootDir: 1,
+                    baseLegRot: 0,
+                    vel: new THREE.Vector3(),
+                    diveTimer: 0,
+                    diveDir: 0,
+                    defensiveX: pos.x,
+                    defensiveZ: pos.z,
+                };
+                p.mesh.position.set(pos.x, 0, pos.z);
+                p.mesh.rotation.y = Math.PI;
+                if (pos.role === 'gk') p.mesh.rotation.y = 0;
+                scene.add(p.mesh);
+                allPlayers.push(p);
+                redTeam.push(p);
+            });
+
+            // ════════════════ وضعیت بازی ════════════════
+            let blueScore = 0,
+                redScore = 0;
+            const scoreB = document.getElementById('blueScore');
+            const scoreR = document.getElementById('redScore');
+            const powerFill = document.getElementById('powerFill');
+            const goalMsg = document.getElementById('message');
+            let powerCharge = 0,
+                spaceDown = false;
+            const MAX_POWER = 100;
+            let camAz = 0,
+                camEl = 0.55,
+                camDist = 70;
+            const camTarget = new THREE.Vector3(0, 2, 0);
+
+            // ════════════════ کنترل‌ها ════════════════
+            const keys = {};
+            window.addEventListener('keydown', e => {
+                keys[e.keyCode] = true;
+                if (e.keyCode === 32) {
+                    e.preventDefault();
+                    if (!spaceDown) { spaceDown = true;
+                        powerCharge = 0; }
+                }
+            });
+            window.addEventListener('keyup', e => {
+                keys[e.keyCode] = false;
+                if (e.keyCode === 32 && spaceDown) { spaceDown = false;
+                    shoot(); }
+            });
+            window.addEventListener('resize', () => {
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+            });
+
+            function shoot() {
+                if (!userPlayer || userPlayer.cooldown > 0 || powerCharge < 8) return;
+                const dist = userPlayer.mesh.position.distanceTo(ball.position);
+                if (dist > 5.5) return;
+                const dir = new THREE.Vector3();
+                userPlayer.mesh.getWorldDirection(dir);
+                const pwr = (powerCharge / MAX_POWER) * 42 + 12;
+                ballVel.copy(dir.multiplyScalar(pwr));
+                ballVel.y += 2.5;
+                ballVel.clampLength(0, 58);
+                lastKicker = 'blue';
+                userPlayer.cooldown = userPlayer.cooldownMax;
+                userPlayer.shooting = true;
+                userPlayer.shootProg = 0;
+                userPlayer.shootDir = 1;
+                userPlayer.baseLegRot = userPlayer.mesh.rightLeg.rotation.x;
+            }
+
+            function updateShootAnim(p) {
+                if (!p.shooting) return;
+                const leg = p.mesh.rightLeg;
+                if (!leg) return;
+                p.shootProg += 0.07 * p.shootDir;
+                leg.rotation.x = p.baseLegRot + Math.sin(p.shootProg * Math.PI) * 1.1;
+                if (p.shootProg >= 1) p.shootDir = -1;
+                if (p.shootProg <= 0 && p.shootDir === -1) {
+                    leg.rotation.x = p.baseLegRot;
+                    p.shooting = false;
+                }
+            }
+
+            // ════════════════ حرکت کاربر ════════════════
+            function moveUser() {
+                if (!userPlayer) return;
+                const p = userPlayer;
+                const m = p.mesh;
+                const cf = new THREE.Vector3();
+                camera.getWorldDirection(cf);
+                cf.y = 0;
+                cf.normalize();
+                const cr = new THREE.Vector3().crossVectors(camera.up, cf).normalize();
+                const md = new THREE.Vector3();
+                if (keys[38]) md.add(cf);
+                if (keys[40]) md.add(cf.clone().negate());
+                if (keys[37]) md.add(cr.clone().negate());
+                if (keys[39]) md.add(cr);
+
+                if (md.length() > 0) {
+                    md.normalize();
+                    p.vel.x += md.x * p.accel;
+                    p.vel.z += md.z * p.accel;
+                }
+                p.vel.x *= FRICTION;
+                p.vel.z *= FRICTION;
+                const hs = Math.sqrt(p.vel.x ** 2 + p.vel.z ** 2);
+                if (hs > p.maxSpeed) { p.vel.x *= p.maxSpeed / hs;
+                    p.vel.z *= p.maxSpeed / hs; }
+                m.position.x += p.vel.x;
+                m.position.z += p.vel.z;
+                if (hs > 0.015) {
+                    const ta = Math.atan2(p.vel.x, p.vel.z);
+                    let d = ta - m.rotation.y;
+                    while (d > Math.PI) d -= Math.PI * 2;
+                    while (d < -Math.PI) d += Math.PI * 2;
+                    m.rotation.y += Math.sign(d) * Math.min(Math.abs(d), TURN_SPEED);
+                }
+                m.position.x = THREE.MathUtils.clamp(m.position.x, -HALF_L + 1, HALF_L - 1);
+                m.position.z = THREE.MathUtils.clamp(m.position.z, -HALF_W + 1, HALF_W - 1);
+            }
+
+            // ════════════════ هوش مصنوعی ════════════════
+            function getTeamGoalX(team) { return team === 'blue' ? -HALF_L : HALF_L; }
+
+            function getOppGoalX(team) { return team === 'blue' ? HALF_L : -HALF_L; }
+
+            function clampToPitch(p) {
+                p.mesh.position.x = THREE.MathUtils.clamp(p.mesh.position.x, -HALF_L + 0.5, HALF_L - 0.5);
+                p.mesh.position.z = THREE.MathUtils.clamp(p.mesh.position.z, -HALF_W + 0.5, HALF_W - 0.5);
+            }
+
+            function applyMovement(p) {
+                p.vel.x *= FRICTION;
+                p.vel.z *= FRICTION;
+                const hs = Math.sqrt(p.vel.x ** 2 + p.vel.z ** 2);
+                if (hs > p.maxSpeed) { p.vel.x *= p.maxSpeed / hs;
+                    p.vel.z *= p.maxSpeed / hs; }
+                p.mesh.position.x += p.vel.x;
+                p.mesh.position.z += p.vel.z;
+                if (hs > 0.015) {
+                    const ta = Math.atan2(p.vel.x, p.vel.z);
+                    let d = ta - p.mesh.rotation.y;
+                    while (d > Math.PI) d -= Math.PI * 2;
+                    while (d < -Math.PI) d += Math.PI * 2;
+                    p.mesh.rotation.y += Math.sign(d) * Math.min(Math.abs(d), TURN_SPEED * 0.9);
+                }
+                clampToPitch(p);
+            }
+
+            function moveToward(p, target, urgency = 1.0) {
+                const toTarget = target.clone().sub(p.mesh.position);
+                const dist = toTarget.length();
+                if (dist < 0.3) return;
+                toTarget.normalize();
+                p.vel.x += toTarget.x * p.accel * urgency;
+                p.vel.z += toTarget.z * p.accel * urgency;
+            }
+
+            function aiShoot(p, targetGoalX) {
+                if (p.cooldown > 0) return;
+                const dist = p.mesh.position.distanceTo(ball.position);
+                if (dist > 4.5) return;
+                const myPos = p.mesh.position;
+                const goalDir = new THREE.Vector3(targetGoalX - myPos.x, 0, -myPos.z * 0.7).normalize();
+                // دقت شوت: آبی‌ها دقیق‌تر
+                const spread = (1 - p.shootAccuracy) * 0.6;
+                goalDir.z += (Math.random() - 0.5) * spread;
+                goalDir.x += (Math.random() - 0.3) * spread * 0.5;
+                goalDir.normalize();
+                const pwr = 12 + Math.random() * 16 + (p.team === 'blue' ? 6 : 0);
+                ballVel.copy(goalDir.multiplyScalar(pwr));
+                ballVel.y += 1.8;
+                lastKicker = p.team;
+                p.cooldown = p.cooldownMax;
+                p.shooting = true;
+                p.shootProg = 0;
+                p.shootDir = 1;
+                p.baseLegRot = p.mesh.rightLeg.rotation.x;
+            }
+
+            // --- دروازه‌بان ---
+            function updateGK(p) {
+                const myGoalX = getTeamGoalX(p.team);
+                const myGoalZ = 0;
+                const bp = ball.position;
+                const myPos = p.mesh.position;
+
+                // محدوده حرکت دروازه‌بان
+                const gkZoneXmin = myGoalX - (myGoalX > 0 ? 10 : -10);
+                const gkZoneXmax = myGoalX + (myGoalX > 0 ? 2 : -2);
+                const gkZoneZ = GOAL_W / 2 + 4;
+
+                // موقعیت ایده‌آل: بین توپ و مرکز دروازه
+                const idealX = THREE.MathUtils.clamp(
+                    myGoalX + (myGoalX > 0 ? -3 : 3),
+                    Math.min(gkZoneXmin, gkZoneXmax),
+                    Math.max(gkZoneXmin, gkZoneXmax)
+                );
+                const dx = bp.x - myGoalX;
+                const idealZ = THREE.MathUtils.clamp(
+                    (Math.abs(dx) < 25) ? bp.z * 0.7 : 0,
+                    -gkZoneZ, gkZoneZ
+                );
+
+                const ideal = new THREE.Vector3(idealX, 0, idealZ);
+                moveToward(p, ideal, 1.3);
+                applyMovement(p);
+
+                // شیرجه: اگر توپ با سرعت به سمت دروازه میاد
+                const saveRange = p.team === 'blue' ? GK_SAVE_RANGE_BLUE : GK_SAVE_RANGE_RED;
+                if (ballVel.length() > 8 && Math.abs(ballVel.x) > 2) {
+                    const ballGoingTowardGoal = (p.team === 'blue' && ballVel.x < -1) || (p.team === 'red' && ballVel.x > 1);
+                    if (ballGoingTowardGoal) {
+                        const t = (myGoalX - bp.x) / (ballVel.x || 0.001);
+                        if (t > 0 && t < 2.0) {
+                            const projZ = bp.z + ballVel.z * t;
+                            const distToTrajectory = Math.abs(projZ - myPos.z);
+                            if (distToTrajectory < saveRange && Math.abs(bp.x - myGoalX) < 30) {
+                                // شیرجه!
+                                p.diveTimer = 18;
+                                p.diveDir = projZ > myPos.z ? 1 : -1;
+                                p.vel.z = p.diveDir * p.maxSpeed * 3;
+                                // مهار توپ
+                                if (distToTrajectory < saveRange * 0.7) {
+                                    ballVel.set(
+                                        -ballVel.x * 0.6,
+                                        3 + Math.random() * 5,
+                                        (Math.random() - 0.5) * 15
+                                    );
+                                    ball.position.copy(
+                                        new THREE.Vector3(myPos.x + (myGoalX > 0 ? -3 : 3), BALL_R, myPos.z + p.diveDir * 2)
+                                    );
+                                    lastKicker = p.team;
+                                    showMessage('🧤 سیو!');
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // بروزرسانی شیرجه
+                if (p.diveTimer > 0) {
+                    p.diveTimer--;
+                    const lean = (p.diveTimer / 18) * 0.7 * p.diveDir;
+                    p.mesh.rotation.z = lean;
+                    if (p.diveTimer === 0) p.mesh.rotation.z = 0;
+                }
+            }
+
+            // --- دفاع ---
+            function updateDF(p) {
+                const myGoalX = getTeamGoalX(p.team);
+                const bp = ball.position;
+                const myPos = p.mesh.position;
+
+                // موقعیت بین توپ و دروازه خودی
+                const defX = THREE.MathUtils.clamp(
+                    myGoalX + (myGoalX > 0 ? -18 : 18) + (bp.x - myGoalX) * 0.5,
+                    myGoalX + (myGoalX > 0 ? -30 : 30),
+                    myGoalX + (myGoalX > 0 ? -5 : 5)
+                );
+                const defZ = THREE.MathUtils.clamp(
+                    p.defensiveZ + (bp.z - p.defensiveZ) * 0.6,
+                    -HALF_W + 3, HALF_W - 3
+                );
+                const ideal = new THREE.Vector3(defX, 0, defZ);
+
+                // اگر توپ نزدیکه، پرس کن
+                const distToBall = myPos.distanceTo(bp);
+                if (distToBall < 8) {
+                    moveToward(p, bp, 1.4);
+                } else {
+                    moveToward(p, ideal, 0.7);
+                }
+                applyMovement(p);
+
+                // شوت دفاعی (پاس بلند/دفع توپ)
+                if (distToBall < 4 && p.cooldown <= 0 && Math.random() < 0.02) {
+                    const clearDir = new THREE.Vector3(getOppGoalX(p.team) - myPos.x, 0, (Math.random() - 0.5) * 30).normalize();
+                    ballVel.copy(clearDir.multiplyScalar(18 + Math.random() * 12));
+                    ballVel.y += 4;
+                    lastKicker = p.team;
+                    p.cooldown = p.cooldownMax;
+                    p.shooting = true;
+                    p.shootProg = 0;
+                    p.shootDir = 1;
+                    p.baseLegRot = p.mesh.rightLeg.rotation.x;
+                }
+                if (p.cooldown > 0) p.cooldown--;
+            }
+
+            // --- هافبک ---
+            function updateMF(p) {
+                const myGoalX = getTeamGoalX(p.team);
+                const oppGoalX = getOppGoalX(p.team);
+                const bp = ball.position;
+                const myPos = p.mesh.position;
+
+                // پوشش میانه میدان
+                const midX = THREE.MathUtils.clamp(
+                    (myGoalX + oppGoalX) / 2 + (bp.x - (myGoalX + oppGoalX) / 2) * 0.5,
+                    myGoalX + (myGoalX > 0 ? -20 : 20),
+                    oppGoalX + (oppGoalX > 0 ? -20 : 20)
+                );
+                const midZ = THREE.MathUtils.clamp(p.defensiveZ + (bp.z - p.defensiveZ) * 0.8, -HALF_W + 2, HALF_W - 2);
+                const ideal = new THREE.Vector3(midX, 0, midZ);
+
+                const distToBall = myPos.distanceTo(bp);
+                if (distToBall < 10) {
+                    moveToward(p, bp, 1.2);
+                } else {
+                    moveToward(p, ideal, 0.6);
+                }
+                applyMovement(p);
+
+                // شوت یا پاس
+                if (distToBall < 4.5 && p.cooldown <= 0 && Math.random() < 0.025) {
+                    const tgt = new THREE.Vector3(oppGoalX - myPos.x, 0, (Math.random() - 0.5) * GOAL_W).normalize();
+                    ballVel.copy(tgt.multiplyScalar(16 + Math.random() * 18));
+                    ballVel.y += 2;
+                    lastKicker = p.team;
+                    p.cooldown = p.cooldownMax;
+                    p.shooting = true;
+                    p.shootProg = 0;
+                    p.shootDir = 1;
+                    p.baseLegRot = p.mesh.rightLeg.rotation.x;
+                }
+                if (p.cooldown > 0) p.cooldown--;
+            }
+
+            // --- مهاجم (فقط قرمز، چون آبی user هست) ---
+            function updateFW(p) {
+                if (p.isUser) return;
+                const oppGoalX = getOppGoalX(p.team);
+                const bp = ball.position;
+                const myPos = p.mesh.position;
+
+                // بمون جلو، نزدیک دروازه حریف
+                const fwdX = THREE.MathUtils.clamp(
+                    oppGoalX + (oppGoalX > 0 ? -22 : 22) + (bp.x - oppGoalX) * 0.4,
+                    oppGoalX + (oppGoalX > 0 ? -35 : 35),
+                    oppGoalX + (oppGoalX > 0 ? -3 : 3)
+                );
+                const fwdZ = THREE.MathUtils.clamp(bp.z * 0.8, -HALF_W + 3, HALF_W - 3);
+                const ideal = new THREE.Vector3(fwdX, 0, fwdZ);
+
+                const distToBall = myPos.distanceTo(bp);
+                if (distToBall < 12) {
+                    moveToward(p, bp, 1.1);
+                } else {
+                    moveToward(p, ideal, 0.5);
+                }
+                applyMovement(p);
+
+                // شوت به سمت دروازه
+                if (distToBall < 5 && p.cooldown <= 0 && Math.random() < 0.04) {
+                    aiShoot(p, oppGoalX);
+                }
+                if (p.cooldown > 0) p.cooldown--;
+            }
+
+            function updateAllAI() {
+                blueTeam.forEach(p => {
+                    if (p.isUser) return;
+                    switch (p.role) {
+                        case 'gk':
+                            updateGK(p);
+                            break;
+                        case 'df':
+                            updateDF(p);
+                            break;
+                        case 'mf':
+                            updateMF(p);
+                            break;
+                        case 'fw':
+                            updateFW(p);
+                            break;
+                    }
+                });
+                redTeam.forEach(p => {
+                    switch (p.role) {
+                        case 'gk':
+                            updateGK(p);
+                            break;
+                        case 'df':
+                            updateDF(p);
+                            break;
+                        case 'mf':
+                            updateMF(p);
+                            break;
+                        case 'fw':
+                            updateFW(p);
+                            break;
+                    }
+                });
+            }
+
+            // ════════════════ فیزیک توپ ════════════════
+            function updateBall() {
+                if (ballVel.length() < 0.005) { ballVel.set(0, 0, 0);
+                    ball.position.y = BALL_R; return; }
+                ball.position.x += ballVel.x;
+                ball.position.y += ballVel.y;
+                ball.position.z += ballVel.z;
+                ballVel.multiplyScalar(BALL_FRICTION);
+                ballVel.y -= 0.28;
+                if (ball.position.y <= BALL_R) { ball.position.y = BALL_R;
+                    ballVel.y *= -0.35;
+                    ballVel.x *= 0.92;
+                    ballVel.z *= 0.92; }
+
+                // بررسی گل
+                function checkGoal(teamScored, goalX) {
+                    if (Math.abs(ball.position.z) < GOAL_W / 2 && ball.position.y < GOAL_H) {
+                        if (teamScored === 'blue') { blueScore++;
+                            scoreB.textContent = blueScore;
+                            showMessage('⚽ گل برای آبی!'); } else { redScore++;
+                            scoreR.textContent = redScore;
+                            showMessage('⚽ گل برای قرمز!'); }
+                        resetBall();
+                        return true;
+                    }
+                    // برخورد به تیر
+                    if (Math.abs(ball.position.z) < GOAL_W / 2 + 0.6 && ball.position.y > GOAL_H - 0.5 && Math.abs(ball
+                            .position.x) > HALF_L - 0.5) {
+                        ball.position.x = Math.sign(ball.position.x) * HALF_L;
+                        ballVel.x *= -0.6;
+                        ballVel.y *= 0.5;
+                    }
+                    return false;
+                }
+                if (ball.position.x > HALF_L) {
+                    if (checkGoal('blue', HALF_L)) return;
+                    ball.position.x = HALF_L;
+                    ballVel.x *= -0.45;
+                }
+                if (ball.position.x < -HALF_L) {
+                    if (checkGoal('red', -HALF_L)) return;
+                    ball.position.x = -HALF_L;
+                    ballVel.x *= -0.45;
+                }
+                if (Math.abs(ball.position.z) > HALF_W) { ball.position.z = Math.sign(ball.position.z) * HALF_W;
+                    ballVel.z *= -0.45; }
+            }
+
+            function resetBall() {
+                ball.position.set(0, BALL_R, 0);
+                ballVel.set(0, 0, 0);
+                lastKicker = null;
+            }
+
+            function showMessage(txt) {
+                goalMsg.textContent = txt;
+                goalMsg.style.opacity = '1';
+                setTimeout(() => { goalMsg.style.opacity = '0'; }, 2200);
+            }
+
+            // ════════════════ برخورد بازیکن-توپ ════════════════
+            function resolveCollisions() {
+                allPlayers.forEach(p => {
+                    if (p.role === 'gk' && p.diveTimer > 0) return; // GK در حال شیرجه جداگانه هندل میشه
+                    const dist = p.mesh.position.distanceTo(ball.position);
+                    const minD = PLAYER_R + BALL_R;
+                    if (dist < minD && dist > 0.001) {
+                        const n = ball.position.clone().sub(p.mesh.position).normalize();
+                        ball.position.add(n.clone().multiplyScalar(minD - dist));
+                        ballVel.add(n.multiplyScalar(1.2));
+                    }
+                });
+            }
+
+            // ════════════════ دوربین ════════════════
+            function updateCam() {
+                const spd = 0.035;
+                if (keys[104]) camEl += spd;
+                if (keys[98]) camEl -= spd;
+                if (keys[100]) camAz -= spd;
+                if (keys[102]) camAz += spd;
+                camEl = THREE.MathUtils.clamp(camEl, 0.08, Math.PI / 2 - 0.06);
+                camAz = camAz % (Math.PI * 2);
+                const focus = userPlayer ? userPlayer.mesh.position : ball.position;
+                camTarget.lerp(new THREE.Vector3(focus.x, 2.5, focus.z), 0.08);
+                const cx = camTarget.x + camDist * Math.cos(camEl) * Math.sin(camAz);
+                const cy = camTarget.y + camDist * Math.sin(camEl);
+                const cz = camTarget.z + camDist * Math.cos(camEl) * Math.cos(camAz);
+                camera.position.set(cx, cy, cz);
+                camera.lookAt(camTarget);
+            }
+
+            // ════════════════ حلقه اصلی ════════════════
+            function animate() {
+                requestAnimationFrame(animate);
+                moveUser();
+                updateAllAI();
+                allPlayers.forEach(p => updateShootAnim(p));
+
+                if (spaceDown && userPlayer && userPlayer.cooldown <= 0) {
+                    powerCharge = Math.min(powerCharge + 1.6, MAX_POWER);
+                    powerFill.style.width = (powerCharge / MAX_POWER * 100) + '%';
+                } else if (!spaceDown) { powerCharge = 0;
+                    powerFill.style.width = '0%'; }
+
+                resolveCollisions();
+                updateBall();
+                updateCam();
+                renderer.render(scene, camera);
+            }
+
+            animate();
+            console.log('🎮 بازی با ۱۲ بازیکن (GK+DF+MF+FW) | آبی‌ها باهوش‌تر 🧠');
+        }
+    </script>
+</body>
+</html>
